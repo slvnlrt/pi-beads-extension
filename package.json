@@ -1,0 +1,42 @@
+{
+  "name": "pi-beads-extension",
+  "version": "0.1.0",
+  "description": "Pi package that brings Beads-style task tracking commands and workflow context to pi.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "beads",
+    "bd",
+    "task-tracking",
+    "agent-workflow"
+  ],
+  "files": [
+    "src",
+    "prompts",
+    "README.md",
+    "LICENSE",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "pack:preview": "npm pack --dry-run"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ],
+    "prompts": [
+      "./prompts/*.md"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@types/node": "^22.15.18",
+    "typescript": "^5.8.3"
+  }
+}
