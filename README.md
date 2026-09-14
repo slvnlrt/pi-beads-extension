@@ -69,8 +69,16 @@ Install the tagged release at user scope (available across your repositories):
 omp plugin install 'github:slvnlrt/pi-beads-extension#v0.1.1'
 ```
 
-The package name remains `pi-beads-extension`, so this replaces an existing
-installation under that name instead of registering a second copy.
+If the original npm version is already installed, remove it before running the
+install command above:
+
+```bash
+omp plugin uninstall pi-beads-extension
+```
+
+This avoids a Bun dependency-resolution loop observed when switching directly
+from the npm source to GitHub. The package name remains `pi-beads-extension`;
+keep only one installation active.
 
 ### Pi
 
