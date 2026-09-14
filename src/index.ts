@@ -53,11 +53,11 @@ function buildCompactionInstructions(prime: string, existing?: string) {
 export default function beadsPiExtension(pi: ExtensionAPI) {
 	let state = createInitialState();
 
-	async function runBd(args: string[], cwd: string, timeout = 15) {
+	async function runBd(args: string[], cwd: string, timeoutSeconds = 15) {
 		try {
-			const result = await pi.exec("bd", args, { timeout });
+			const result = await pi.exec("bd", args, { cwd, timeout: timeoutSeconds * 1000 });
 			return {
-				ok: result.code === 0,
+				ok: result.code === 0 && !result.killed,
 				stdout: result.stdout.trim(),
 				stderr: result.stderr.trim(),
 			};

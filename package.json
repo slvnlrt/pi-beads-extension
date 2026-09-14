@@ -1,9 +1,17 @@
 {
   "name": "pi-beads-extension",
-  "version": "0.1.0",
-  "description": "Pi package that brings Beads-style task tracking commands and workflow context to pi.",
+  "version": "0.1.1",
+  "description": "Corrected distribution of pi-beads-extension for Pi and Oh My Pi.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slvnlrt/pi-beads-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slvnlrt/pi-beads-extension/issues"
+  },
+  "homepage": "https://github.com/slvnlrt/pi-beads-extension#readme",
   "keywords": [
     "pi-package",
     "pi-extension",
@@ -35,8 +43,8 @@
     "@mariozechner/pi-coding-agent": "*"
   },
   "devDependencies": {
-    "@mariozechner/pi-coding-agent": "*",
-    "@types/node": "^22.15.18",
-    "typescript": "^5.8.3"
+    "@mariozechner/pi-coding-agent": "0.73.1",
+    "@types/node": "22.15.18",
+    "typescript": "5.8.3"
   }
 }
