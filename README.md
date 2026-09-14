@@ -6,21 +6,26 @@ published on npm by **jkbjhs** on April 12, 2026. The original MIT license is
 preserved unchanged. This repository is maintained by **slvnlrt** and is not an
 official Beads, Pi, or Oh My Pi project.
 
-The first Git commit imports the original npm release. Version **0.1.1** makes
-only these runtime changes:
+The first Git commit imports the original npm release. Version **0.1.1** corrected
+Beads command execution:
 
 - Convert the Beads command deadlines from seconds to the milliseconds expected
   by `pi.exec` (10 or 15 seconds, not 10 or 15 milliseconds).
 - Pass the active working directory to `pi.exec`.
 - Do not treat an interrupted command (`killed: true`) as successful.
 
-The existing commands, prompts, caching and compaction behavior are otherwise
-unchanged. This fork is distributed through **GitHub**, not the original npm name.
+Version **0.1.2** removes the custom compaction hooks. Pi and Oh My Pi handle
+compaction natively; the extension injects fresh `bd prime` context on the next
+agent turn. Beads task data remains in its own database. This avoids depending on
+incompatible positional `compact()` APIs and removes the misleading preservation
+notification.
+
+The existing commands, prompts and caching remain unchanged. This fork is
+distributed through **GitHub**, not the original npm name.
 
 Beads integration for [pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent):
 
 - auto-injects `bd prime` workflow context into pi turns
-- preserves Beads workflow context during pi compaction
 - adds Claude-style `/beads:*` slash command aliases
 - ships prompt templates for common Beads workflows
 - packaged as a publishable npm pi package
@@ -56,7 +61,7 @@ When `bd` is installed:
 - the extension checks whether Beads is initialized in the current repo
 - pi gets a small Beads workflow reminder in the system prompt
 - if the repo is initialized, the extension injects `bd prime` output into the turn prompt
-- during pi compaction, the extension adds Beads-aware summary instructions so `bd prime` context survives compaction more explicitly
+- compaction is left to the host; Beads workflow context is injected again on the next agent turn
 - the footer status shows whether Beads is enabled or still needs init
 
 ## Installation
@@ -66,7 +71,7 @@ When `bd` is installed:
 Install the tagged release at user scope (available across your repositories):
 
 ```bash
-omp plugin install 'github:slvnlrt/pi-beads-extension#v0.1.1'
+omp plugin install 'github:slvnlrt/pi-beads-extension#v0.1.2'
 ```
 
 If the original npm version is already installed, remove it before running the
@@ -83,7 +88,7 @@ keep only one installation active.
 ### Pi
 
 ```bash
-pi install 'git:github.com/slvnlrt/pi-beads-extension#v0.1.1'
+pi install 'git:github.com/slvnlrt/pi-beads-extension#v0.1.2'
 ```
 
 Remove a previous `npm:pi-beads-extension` entry from Pi before adding the Git

@@ -1,4 +1,4 @@
-import { compact, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 type AliasCommand = {
 	name: string;
@@ -43,11 +43,6 @@ function createInitialState(): BeadsState {
 		checkedAt: 0,
 		primeAt: 0,
 	};
-}
-
-function buildCompactionInstructions(prime: string, existing?: string) {
-	const prefix = existing?.trim() ? `${existing.trim()}\n\n` : "";
-	return `${prefix}Beads is active in this project. Preserve any task-tracking state, workflow expectations, issue IDs, dependency relationships, and next-step cues that matter for continuing work after compaction. Use this current \`bd prime\` context as a high-priority reference when forming the compacted summary:\n\n<beads-prime>\n${prime}\n</beads-prime>`;
 }
 
 export default function beadsPiExtension(pi: ExtensionAPI) {
@@ -157,51 +152,6 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 	pi.on("agent_end", async (_event, ctx) => {
 		await refreshState(ctx.cwd, true);
 		syncStatus(ctx);
-	});
-
-	pi.on("session_before_compact", async (event, ctx) => {
-		await refreshState(ctx.cwd);
-		if (!state.available || !state.initialized || !ctx.model) {
-			return;
-		}
-
-		const prime = await getPrime(ctx.cwd);
-		if (!prime) {
-			return;
-		}
-
-		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-		if (!auth.ok || !auth.apiKey) {
-			return;
-		}
-
-		try {
-			const compaction = await compact(
-				event.preparation,
-				ctx.model,
-				auth.apiKey,
-				auth.headers,
-				buildCompactionInstructions(prime, event.customInstructions),
-				event.signal,
-			);
-
-			return { compaction };
-		} catch (error) {
-			if (!event.signal.aborted) {
-				const message = error instanceof Error ? error.message : String(error);
-				ctx.ui.notify(`Beads compaction hook failed, falling back to default compaction: ${message}`, "warning");
-			}
-			return;
-		}
-	});
-
-	pi.on("session_compact", async (event, ctx) => {
-		await refreshState(ctx.cwd, true);
-		syncStatus(ctx);
-
-		if (event.fromExtension && state.initialized) {
-			ctx.ui.notify("Beads context preserved during compaction.", "info");
-		}
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {

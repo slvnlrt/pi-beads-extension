@@ -1,6 +1,6 @@
 {
   "name": "pi-beads-extension",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Corrected distribution of pi-beads-extension for Pi and Oh My Pi.",
   "type": "module",
   "license": "MIT",
