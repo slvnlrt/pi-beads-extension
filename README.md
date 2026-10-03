@@ -20,8 +20,14 @@ agent turn. Beads task data remains in its own database. This avoids depending o
 incompatible positional `compact()` APIs and removes the misleading preservation
 notification.
 
-The existing commands, prompts and caching remain unchanged. This fork is
-distributed through **GitHub**, not the original npm name.
+Version **0.1.3** keeps the injected system prompt stable within a session so the
+provider can reuse its prompt cache. The extension reads `bd prime` once and
+refreshes it only when the session or active branch changes, or after compaction.
+Memories written mid-session appear at the next session or compaction. Failed
+`bd prime` calls are retried on the next turn.
+
+The existing commands and prompts remain unchanged. This fork is distributed
+through **GitHub**, not the original npm name.
 
 Beads integration for [pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent):
 
@@ -60,8 +66,9 @@ When `bd` is installed:
 
 - the extension checks whether Beads is initialized in the current repo
 - pi gets a small Beads workflow reminder in the system prompt
-- if the repo is initialized, the extension injects `bd prime` output into the turn prompt
-- compaction is left to the host; Beads workflow context is injected again on the next agent turn
+- if the repo is initialized, the extension injects cached `bd prime` output into the system prompt
+- compaction is left to the host; Beads workflow context refreshes after compaction or a session/branch change
+- availability and initialization changes update the footer immediately, but the injected instructions stay stable until that boundary
 - the footer status shows whether Beads is enabled or still needs init
 
 ## Installation

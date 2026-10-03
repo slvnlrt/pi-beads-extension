@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
 type AliasCommand = {
 	name: string;
@@ -11,13 +11,10 @@ type BeadsState = {
 	initialized: boolean;
 	version?: string;
 	location?: string;
-	prime?: string;
 	checkedAt: number;
-	primeAt: number;
 };
 
 const STATE_TTL_MS = 10_000;
-const PRIME_TTL_MS = 15_000;
 
 const ALIAS_COMMANDS: AliasCommand[] = [
 	{ name: "init", template: "beads-init", description: "Initialize beads in the current project" },
@@ -41,12 +38,12 @@ function createInitialState(): BeadsState {
 		available: false,
 		initialized: false,
 		checkedAt: 0,
-		primeAt: 0,
 	};
 }
 
 export default function beadsPiExtension(pi: ExtensionAPI) {
 	let state = createInitialState();
+	let promptContext: { available: boolean; initialized: boolean; prime?: string } | undefined;
 
 	async function runBd(args: string[], cwd: string, timeoutSeconds = 15) {
 		try {
@@ -84,28 +81,23 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 		state.location = whereResult.ok ? whereResult.stdout || undefined : undefined;
 		state.checkedAt = Date.now();
 
-		if (!state.initialized) {
-			state.prime = undefined;
-			state.primeAt = 0;
-		}
-
 		return state;
 	}
 
 	async function getPrime(cwd: string): Promise<string | undefined> {
-		await refreshState(cwd);
-		if (!state.available || !state.initialized) {
+		promptContext ??= { available: state.available, initialized: state.initialized };
+		if (promptContext.prime !== undefined) {
+			return promptContext.prime;
+		}
+		if (!promptContext.available || !promptContext.initialized) {
 			return undefined;
 		}
 
-		if (state.prime && Date.now() - state.primeAt < PRIME_TTL_MS) {
-			return state.prime;
-		}
-
 		const primeResult = await runBd(["prime"], cwd, 15);
-		state.prime = primeResult.ok && primeResult.stdout ? primeResult.stdout : undefined;
-		state.primeAt = Date.now();
-		return state.prime;
+		if (primeResult.ok) {
+			promptContext.prime = primeResult.stdout;
+		}
+		return promptContext.prime;
 	}
 
 	function syncStatus(ctx: { ui: { setStatus: (id: string, text: string | undefined) => void } }) {
@@ -115,6 +107,13 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 		}
 
 		ctx.ui.setStatus("beads", state.initialized ? "beads: enabled" : "beads: init needed");
+	}
+
+	async function refreshPromptContext(ctx: ExtensionContext) {
+		await refreshState(ctx.cwd, true);
+		promptContext = { available: state.available, initialized: state.initialized };
+		await getPrime(ctx.cwd);
+		syncStatus(ctx);
 	}
 
 	for (const command of ALIAS_COMMANDS) {
@@ -136,8 +135,7 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
-		await refreshState(ctx.cwd, true);
-		syncStatus(ctx);
+		await refreshPromptContext(ctx);
 
 		if (!state.available) {
 			ctx.ui.notify("Beads CLI (bd) not found on PATH. Install bd to enable /beads:* workflows.", "warning");
@@ -149,6 +147,23 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 		}
 	});
 
+	pi.on("session_compact", async (_event, ctx) => {
+		await refreshPromptContext(ctx);
+	});
+
+	// Pi emits session_start for these transitions; OMP emits separate post-change events.
+	const sessionApi = pi as ExtensionAPI & {
+		on(
+			event: "session_switch" | "session_branch" | "session_tree",
+			handler: (event: unknown, ctx: ExtensionContext) => Promise<void>,
+		): void;
+	};
+	for (const event of ["session_switch", "session_branch", "session_tree"] as const) {
+		sessionApi.on(event, async (_event, ctx) => {
+			await refreshPromptContext(ctx);
+		});
+	}
+
 	pi.on("agent_end", async (_event, ctx) => {
 		await refreshState(ctx.cwd, true);
 		syncStatus(ctx);
@@ -158,7 +173,8 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 		await refreshState(ctx.cwd);
 		syncStatus(ctx);
 
-		if (!state.available) {
+		promptContext ??= { available: state.available, initialized: state.initialized };
+		if (!promptContext.available) {
 			return;
 		}
 
@@ -172,11 +188,7 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 - The user can also invoke slash command aliases such as \`/beads:ready\`, \`/beads:create\`, and \`/beads:workflow\`.
 `;
 
-		if (!state.initialized) {
-			if (!/\b(beads|bd\b|task|tasks|todo|todos|issue|issues|tracker|backlog|roadmap|plan)\b/i.test(event.prompt)) {
-				return;
-			}
-
+		if (!promptContext.initialized) {
 			return {
 				systemPrompt:
 					event.systemPrompt +
