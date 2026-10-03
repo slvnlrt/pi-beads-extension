@@ -190,7 +190,7 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
-		await promptRefresh;
+		await promptRefresh?.catch(() => {});
 		await refreshState(ctx.cwd);
 		syncStatus(ctx);
 
