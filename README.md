@@ -15,16 +15,18 @@ Beads command execution:
 - Do not treat an interrupted command (`killed: true`) as successful.
 
 Version **0.1.2** removes the custom compaction hooks. Pi and Oh My Pi handle
-compaction natively; the extension injects fresh `bd prime` context on the next
-agent turn. Beads task data remains in its own database. This avoids depending on
+compaction natively; the extension injects `bd prime` context. Beads task data
+remains in its own database. This avoids depending on
 incompatible positional `compact()` APIs and removes the misleading preservation
 notification.
 
 Version **0.1.3** keeps the injected system prompt stable within a session so the
 provider can reuse its prompt cache. The extension reads `bd prime` once and
 refreshes it only when the session or active branch changes, or after compaction.
-Memories written mid-session appear at the next session or compaction. Failed
-`bd prime` calls are retried on the next turn.
+Memories written mid-session appear at the next session or compaction. Successful
+empty `bd prime` output is cached too; failed calls are retried on the next turn.
+No Beads instructions are injected in projects where Beads is not initialized;
+the footer and session-start notification still advertise `/beads:init`.
 
 The existing commands and prompts remain unchanged. This fork is distributed
 through **GitHub**, not the original npm name.
@@ -65,7 +67,7 @@ This package is inspired by the Beads Claude Code plugin, but adapted for pi's e
 When `bd` is installed:
 
 - the extension checks whether Beads is initialized in the current repo
-- pi gets a small Beads workflow reminder in the system prompt
+- initialized projects get a small Beads workflow reminder in the system prompt
 - if the repo is initialized, the extension injects cached `bd prime` output into the system prompt
 - compaction is left to the host; Beads workflow context refreshes after compaction or a session/branch change
 - availability and initialization changes update the footer immediately, but the injected instructions stay stable until that boundary
@@ -78,7 +80,7 @@ When `bd` is installed:
 Install the tagged release at user scope (available across your repositories):
 
 ```bash
-omp plugin install 'github:slvnlrt/pi-beads-extension#v0.1.2'
+omp plugin install 'github:slvnlrt/pi-beads-extension#v0.1.3'
 ```
 
 If the original npm version is already installed, remove it before running the
@@ -95,7 +97,7 @@ keep only one installation active.
 ### Pi
 
 ```bash
-pi install 'git:github.com/slvnlrt/pi-beads-extension#v0.1.2'
+pi install 'git:github.com/slvnlrt/pi-beads-extension#v0.1.3'
 ```
 
 Remove a previous `npm:pi-beads-extension` entry from Pi before adding the Git

@@ -43,7 +43,13 @@ function createInitialState(): BeadsState {
 
 export default function beadsPiExtension(pi: ExtensionAPI) {
 	let state = createInitialState();
-	let promptContext: { available: boolean; initialized: boolean; prime?: string } | undefined;
+	let promptContext: {
+		available: boolean;
+		initialized: boolean;
+		prime?: string;
+		primePromise?: Promise<string | undefined>;
+	} | undefined;
+	let promptRefresh: Promise<void> | undefined;
 
 	async function runBd(args: string[], cwd: string, timeoutSeconds = 15) {
 		try {
@@ -85,19 +91,25 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 	}
 
 	async function getPrime(cwd: string): Promise<string | undefined> {
-		promptContext ??= { available: state.available, initialized: state.initialized };
-		if (promptContext.prime !== undefined) {
-			return promptContext.prime;
+		const context = promptContext ??= { available: state.available, initialized: state.initialized };
+		if (context.prime !== undefined) {
+			return context.prime;
 		}
-		if (!promptContext.available || !promptContext.initialized) {
+		if (!context.available || !context.initialized) {
 			return undefined;
 		}
 
-		const primeResult = await runBd(["prime"], cwd, 15);
-		if (primeResult.ok) {
-			promptContext.prime = primeResult.stdout;
-		}
-		return promptContext.prime;
+		context.primePromise ??= runBd(["prime"], cwd, 15)
+			.then((result) => {
+				if (result.ok) {
+					context.prime = result.stdout;
+				}
+				return context.prime;
+			})
+			.finally(() => {
+				context.primePromise = undefined;
+			});
+		return context.primePromise;
 	}
 
 	function syncStatus(ctx: { ui: { setStatus: (id: string, text: string | undefined) => void } }) {
@@ -109,11 +121,19 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 		ctx.ui.setStatus("beads", state.initialized ? "beads: enabled" : "beads: init needed");
 	}
 
-	async function refreshPromptContext(ctx: ExtensionContext) {
-		await refreshState(ctx.cwd, true);
-		promptContext = { available: state.available, initialized: state.initialized };
-		await getPrime(ctx.cwd);
-		syncStatus(ctx);
+	function refreshPromptContext(ctx: ExtensionContext) {
+		const refresh = (async () => {
+			await refreshState(ctx.cwd, true);
+			promptContext = { available: state.available, initialized: state.initialized };
+			await getPrime(ctx.cwd);
+			syncStatus(ctx);
+		})();
+		promptRefresh = refresh;
+		return refresh.finally(() => {
+			if (promptRefresh === refresh) {
+				promptRefresh = undefined;
+			}
+		});
 	}
 
 	for (const command of ALIAS_COMMANDS) {
@@ -170,11 +190,12 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
+		await promptRefresh;
 		await refreshState(ctx.cwd);
 		syncStatus(ctx);
 
 		promptContext ??= { available: state.available, initialized: state.initialized };
-		if (!promptContext.available) {
+		if (!promptContext.available || !promptContext.initialized) {
 			return;
 		}
 
@@ -187,15 +208,6 @@ export default function beadsPiExtension(pi: ExtensionAPI) {
 - Do not use \`bd edit\`; it opens an interactive editor. Use \`bd update\` flags or stdin/file arguments instead.
 - The user can also invoke slash command aliases such as \`/beads:ready\`, \`/beads:create\`, and \`/beads:workflow\`.
 `;
-
-		if (!promptContext.initialized) {
-			return {
-				systemPrompt:
-					event.systemPrompt +
-					baseInstructions +
-					"\nBeads is installed but not initialized in this project. If the user wants Beads here, suggest `/beads:init`.\n",
-			};
-		}
 
 		const prime = await getPrime(ctx.cwd);
 		const primeSection = prime
